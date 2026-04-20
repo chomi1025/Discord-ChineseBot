@@ -4,7 +4,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-export async function getAIHSKWords() {
+export async function getAIHSKWords(retries = 3) {
   const prompt = `HSK 3급에서 4급 수준의 필수 단어 3개를 무작위로 선정해서
   반드시 아래의 JSON 형식으로만 응답해줘. 예문(example_cn)에는 반드시 괄호 안에 병음을 함께 적어줘.
 
@@ -20,13 +20,25 @@ export async function getAIHSKWords() {
   ]
 
   주의: JSON 외에 설명이나 인사말 등 다른 말은 절대로 하지 마.`;
-  try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text().replace(/```json|```/g, "");
-    return JSON.parse(text);
-  } catch (error) {
-    console.error("제미나이 에러:", error);
-    return [];
+
+  for (let i = 0; i < retries; i++) {
+    try {
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text().replace(/```json|```/g, "");
+      return JSON.parse(text);
+    } catch (error) {
+      if (i < retries - 1) {
+        const delay = (i + 1) * 2000;
+        console.warn(
+          `[HSK-BOT] 제미나이가 바빠요. ${i + 1}번째 재시도 중... (${delay}ms 후)`,
+        );
+        await new Promise((res) => setTimeout(res, delay));
+        continue;
+      }
+
+      console.error("제미나이 최종 에러:", error);
+      return [];
+    }
   }
 }
