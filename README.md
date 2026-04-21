@@ -1,1 +1,1 @@
-# Discord-ChinesBot
+# Discord-ChineseBot
