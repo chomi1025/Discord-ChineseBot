@@ -44,21 +44,33 @@ function getMillisecondsUntilNext9() {
 }
 
 async function startNotificationLoop(client) {
+  console.log("📡 채널 연결 시도 중... ID:", process.env.CHANNEL_ID);
   const channel = await client.channels.fetch(process.env.CHANNEL_ID);
+
+  if (!channel) {
+    console.error("❌ 채널을 찾을 수 없어! CHANNEL_ID를 확인해봐.");
+    return;
+  }
 
   const run = async () => {
     console.log("🚀 AI 단어 생성 및 발송 시작...");
     try {
       const words = await getAIHSKWords();
-      await sendDiscordEmbed(channel, words);
-      console.log("✅ 발송 완료!");
+      if (words && words.length > 0) {
+        await sendDiscordEmbed(channel, words);
+        console.log("✅ 발송 완료!");
+      } else {
+        console.warn(
+          "⚠️ 생성된 단어가 없어. 재시도 로직을 타거나 API를 확인해야 함.",
+        );
+      }
     } catch (e) {
       console.error("❌ 발송 중 에러:", e);
     }
 
     const delay = getMillisecondsUntilNext9();
     console.log(
-      `${(delay / 1000 / 60).toFixed(1)}분 뒤에 다음 알림이 발송됩니다.`,
+      `${(delay / 1000 / 60 / 60).toFixed(2)}시간 뒤에 다음 알림이 발송됩니다.`,
     );
     setTimeout(run, delay);
   };
@@ -68,7 +80,9 @@ async function startNotificationLoop(client) {
 
 client.once("ready", () => {
   console.log(`✅ 로그인 성공! 봇 이름: ${client.user.tag}`);
-  startNotificationLoop(client);
+  startNotificationLoop(client).catch((err) =>
+    console.error("Loop 시작 에러:", err),
+  );
 });
 
 client.login(process.env.DISCORD_TOKEN);
